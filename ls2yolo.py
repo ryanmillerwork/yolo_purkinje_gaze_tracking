@@ -49,11 +49,20 @@ if not response.headers.get('content-type', '').startswith('application/zip'):
 
 response.raise_for_status()
 
-with ZipFile(BytesIO(response.content)) as zf:
-    json_file = next((n for n in zf.namelist() if n.endswith(".json")), None)
-    if not json_file:
-        raise RuntimeError("Export zip had no JSON file inside.")
-    tasks = json.loads(zf.read(json_file))
+# Handle both ZIP and direct JSON responses
+content_type = response.headers.get('content-type', '')
+if content_type.startswith('application/zip'):
+    # ZIP file containing JSON
+    with ZipFile(BytesIO(response.content)) as zf:
+        json_file = next((n for n in zf.namelist() if n.endswith(".json")), None)
+        if not json_file:
+            raise RuntimeError("Export zip had no JSON file inside.")
+        tasks = json.loads(zf.read(json_file))
+elif 'json' in content_type:
+    # Direct JSON response
+    tasks = response.json()
+else:
+    raise RuntimeError(f"Unexpected content type: {content_type}. Expected JSON or ZIP file.")
 
 print(f"✓ Downloaded {len(tasks)} tasks from project {PROJECT_ID}")
 
