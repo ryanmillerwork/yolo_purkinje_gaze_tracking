@@ -1,0 +1,29 @@
+# Dual-Purkinje Eye Tracker Dataset Configuration
+# For YOLO object detection training
+
+# Dataset root path (relative to this file)
+path: yolo_dualp
+
+# Training and validation image paths (relative to 'path')
+train: images/train
+val: images/train  # Using same for now - split manually if needed
+
+# Number of classes
+nc: 3
+
+# Class names (order matters - matches class IDs in labels)
+names:
+  0: pupil_mask        # Large pupil region (may be partially occluded)
+  1: purkinje1_mask    # First Purkinje reflection (usually visible)
+  2: purkinje4_mask    # Fourth Purkinje reflection (often missing)
+
+# Additional metadata
+description: "Dual-Purkinje eye tracking dataset with separate object classes"
+authors: ["Eye Tracking Lab"]
+version: "1.0"
+
+# Training notes:
+# - Images may contain 1-3 objects depending on visibility
+# - Missing P4 reflections are handled gracefully
+# - Designed for fast inference (~1-2ms) with post-processing for precision
+# - Consider creating validation split: 80% train, 20% val 
