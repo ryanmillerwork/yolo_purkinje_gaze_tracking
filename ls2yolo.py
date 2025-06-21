@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os, json, cv2, numpy as np, pathlib, requests, shutil
 from io import BytesIO
-from zipfile import ZipFilefrom label_studio_sdk import Client
+from zipfile import ZipFile
+from label_studio_sdk import Client
 # try the new location first
 try:
     from label_studio_converter.utils import rle2mask
