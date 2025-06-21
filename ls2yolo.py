@@ -75,6 +75,17 @@ def poly_to_mask(poly, h, w):
     cv2.fillPoly(mask, [pts.astype(np.int32)], 1)
     return mask
 
+def rle_to_mask(rle_data, h, w):
+    """Convert RLE format to binary mask"""
+    # RLE format: [start1, length1, start2, length2, ...]
+    mask = np.zeros(h * w, dtype=np.uint8)
+    for i in range(0, len(rle_data), 2):
+        if i + 1 < len(rle_data):
+            start = int(rle_data[i])
+            length = int(rle_data[i + 1])
+            mask[start:start + length] = 1
+    return mask.reshape(h, w)
+
 def draw_overlay(img, masks, bbox, kps):
     out = img.copy()
     for name, m in masks.items():
@@ -146,11 +157,27 @@ for i, task in enumerate(tasks):
         if ann["type"] != "brushlabels":
             continue
         name = ann["value"]["brushlabels"][0]
-        poly = [(p[0]*w/100, p[1]*h/100) for p in ann["value"]["points"]]
-        mask = poly_to_mask(poly, h, w)
+        
+        # Handle different annotation formats
+        if "points" in ann["value"]:
+            # Polygon points format
+            poly = [(p[0]*w/100, p[1]*h/100) for p in ann["value"]["points"]]
+            mask = poly_to_mask(poly, h, w)
+        elif "rle" in ann["value"]:
+            # RLE format
+            rle_data = ann["value"]["rle"]
+            mask = rle_to_mask(rle_data, h, w)
+        else:
+            print(f"⚠️  Unknown annotation format for {name}")
+            continue
+            
         masks[name] = mask
         ys, xs = np.nonzero(mask)
-        kps[LABEL2KP[name]] = (xs.mean(), ys.mean())
+        if len(xs) > 0 and len(ys) > 0:
+            kps[LABEL2KP[name]] = (xs.mean(), ys.mean())
+        else:
+            print(f"⚠️  Empty mask for {name}")
+            continue
 
     # bounding box + YOLO line
     x_min, y_min = kps.min(0) - 5
