@@ -20,7 +20,7 @@ from config import LS_TOKEN
 LS_HOST    = "http://127.0.0.1:8080"               # Label Studio host
 PROJECT_ID = 7                                    # project ID
 OUT_ROOT   = pathlib.Path("yolo_dualp")            # output dataset folder
-IMG_ROOT   = "/data/upload"                       # LS upload dir on server
+IMG_ROOT   = "/home/lab/.local/share/label-studio/media/upload"  # LS upload dir on server
 # ───────────────────────────────────────────────────────────────
 
 LABEL2KP   = {"pupil_mask":0, "purkinje1_mask":1, "purkinje4_mask":2}
@@ -105,8 +105,33 @@ for i, task in enumerate(tasks):
     print(f"File exists: {src_img.exists()}")
     
     if not src_img.exists():
-        print(f"⚠️  Skipping missing file: {src_img}")
-        continue
+        # Try to find the file by searching for it
+        filename = src_img.name
+        print(f"⚠️  File not found at: {src_img}")
+        print(f"Searching for: {filename}")
+        
+        # Search in common Label Studio locations
+        search_paths = [
+            f"/data/upload/{filename}",
+            f"/data/upload/7/{filename}",
+            f"/label-studio/data/upload/{filename}",
+            f"/label-studio/data/upload/7/{filename}",
+            f"/home/lab/labeling/data/upload/{filename}",
+            f"/home/lab/labeling/data/upload/7/{filename}",
+        ]
+        
+        found_file = None
+        for search_path in search_paths:
+            if pathlib.Path(search_path).exists():
+                found_file = pathlib.Path(search_path)
+                print(f"✓ Found file at: {found_file}")
+                break
+        
+        if not found_file:
+            print(f"⚠️  Could not find {filename} in any common locations")
+            continue
+        
+        src_img = found_file
         
     img = cv2.imread(str(src_img))
     if img is None:
