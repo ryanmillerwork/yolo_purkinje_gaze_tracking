@@ -68,7 +68,7 @@ MASK_COLOR = {                       # BGR colors for previews
 }
 
 # ───── 1. Download the export straight from Label Studio ─────
-export_url = f"{LS_HOST}/api/projects/{PROJECT_ID}/export?exportType=JSON&download_all_tasks=true"
+export_url = f"{LS_HOST}/api/projects/{PROJECT_ID}/export?exportType=JSON&download_all_tasks=false"
 print("Requesting:", export_url)
 
 resp = requests.get(export_url,
