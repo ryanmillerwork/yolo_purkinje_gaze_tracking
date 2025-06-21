@@ -2,11 +2,13 @@
 """
 ls2yolo.py
 ──────────
-• Downloads the latest JSON export from Label Studio.
-• Converts pupil / Purkinje-1 / Purkinje-4 masks → YOLO-Pose labels.
-• Saves color-overlay preview images for quick QC.
+• Downloads completed annotation tasks from Label Studio.
+• Converts pupil / Purkinje-1 / Purkinje-4 masks → YOLO object detection labels.
+• Creates separate classes (0=pupil, 1=purkinje1, 2=purkinje4) for robust detection.
+• Handles missing elements gracefully (e.g., invisible Purkinje-4 reflections).
+• Saves color-overlay preview images with individual bounding boxes for quick QC.
 
-Run inside the same Python venv you use for MobileSAM.
+Designed for dual-Purkinje eye tracking with fast inference (~1-2ms).
 
 Dependencies:
     pip install label-studio-converter opencv-python numpy requests

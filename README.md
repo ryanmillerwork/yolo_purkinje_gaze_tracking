@@ -1,25 +1,41 @@
-# Label Studio to YOLO-Pose Converter
+# Label Studio to YOLO Object Detection Converter
 
-This script converts eye tracking annotations from Label Studio into YOLO-Pose format, specifically designed for pupil and Purkinje reflection detection.
+This script converts eye tracking annotations from Label Studio into YOLO object detection format, specifically designed for dual-Purkinje eye tracker training.
 
 ## What it does
 
 The script automatically:
-- Downloads the latest JSON export from Label Studio via REST API
-- Converts pupil, Purkinje-1, and Purkinje-4 mask annotations into YOLO-Pose keypoint labels
+- Downloads annotated tasks from Label Studio via REST API
+- Converts pupil, Purkinje-1, and Purkinje-4 mask annotations into separate YOLO object detection labels
+- Handles missing elements gracefully (e.g., invisible Purkinje-4 reflections)
 - Generates color-annotated preview images for quick quality control
 - Organizes everything into a YOLO-compatible dataset structure
+
+## Dual-Purkinje Eye Tracking Approach
+
+This converter creates **three separate object classes** for maximum flexibility and precision:
+
+- **Class 0**: `pupil_mask` - Large pupil region (may be partially occluded)
+- **Class 1**: `purkinje1_mask` - First Purkinje reflection (usually visible)
+- **Class 2**: `purkinje4_mask` - Fourth Purkinje reflection (often invisible)
+
+This approach allows:
+- **Fast inference** (~1-2ms) with standard YOLO object detection
+- **Robust handling** of missing P4 reflections
+- **Independent detection** of each component
+- **Post-processing flexibility** for precise center estimation
 
 ## Features
 
 - **Automated data pipeline**: No manual export/import needed
-- **Quality control previews**: Visual overlays show detected regions and keypoints
-- **YOLO-Pose compatibility**: Ready-to-use format for training pose estimation models
+- **Handles missing elements**: Only exports completed annotations
+- **Quality control previews**: Visual overlays show detected regions and bounding boxes
+- **Standard YOLO compatibility**: Works with any YOLO object detection model
 - **Secure configuration**: Credentials stored separately from code
 
 ## Prerequisites
 
-- Python environment with access to your MobileSAM backend
+- Python environment with Label Studio converter
 - Label Studio instance running and accessible
 - Project with brush label annotations for:
   - `pupil_mask`
@@ -30,7 +46,7 @@ The script automatically:
 
 1. Install required dependencies:
 ```bash
-pip install label-studio-sdk opencv-python numpy requests
+pip install label-studio-converter opencv-python numpy requests
 ```
 
 2. Clone or download this script to your working directory
@@ -71,9 +87,9 @@ python ls2yolo.py
 ```
 
 The script will:
-1. Download all tasks from your Label Studio project
-2. Process each annotated image
-3. Create the YOLO dataset structure
+1. Download completed annotation tasks from your Label Studio project
+2. Process each annotated image with proper RLE decoding
+3. Create separate object detection labels for each mask
 4. Generate preview images for quality control
 
 ## Output Structure
@@ -100,16 +116,24 @@ yolo_dualp/
 
 ### Label Format
 
-Each `.txt` file contains YOLO-Pose format labels:
+Each `.txt` file contains 1-3 lines in YOLO object detection format:
 ```
-class_id center_x center_y width height kp1_x kp1_y kp1_vis kp2_x kp2_y kp2_vis kp3_x kp3_y kp3_vis
+class_id center_x center_y width height
+```
+
+Example output:
+```
+2 0.534028 0.270000 0.023611 0.037778    # purkinje4: small reflection
+1 0.476389 0.535556 0.041667 0.075556    # purkinje1: larger reflection  
+0 0.533333 0.360000 0.308333 0.484444    # pupil: large region
 ```
 
 Where:
-- `class_id`: Always 0 (single class for eye region)
-- `center_x, center_y, width, height`: Bounding box (normalized 0-1)
-- `kp1, kp2, kp3`: Keypoints for pupil, Purkinje-1, Purkinje-4 (normalized 0-1)
-- `kp_vis`: Visibility flag (always 2 = visible)
+- `class_id`: 0=pupil, 1=purkinje1, 2=purkinje4
+- `center_x, center_y`: Bounding box center (normalized 0-1)
+- `width, height`: Bounding box dimensions (normalized 0-1)
+
+**Note**: Images may have 1-3 objects depending on visibility (e.g., missing P4 reflection)
 
 ### Preview Images
 
@@ -117,14 +141,12 @@ Color-coded overlays help verify the conversion:
 - **Orange**: Pupil mask
 - **Blue**: Purkinje-1 mask  
 - **Purple**: Purkinje-4 mask
-- **Green**: Bounding box
-- **Black crosses**: Keypoint centers
+- **Green boxes**: Individual bounding boxes with class labels
 
 ## Troubleshooting
 
-**"Export zip had no JSON file inside"**
-- Check that your Label Studio project has completed annotations
-- Verify the project ID is correct
+**"Cannot import decode_rle"**
+- Install label-studio-converter: `pip install label-studio-converter`
 
 **"FileNotFoundError: config.py"**
 - Make sure you created the `config.py` file with your LS_TOKEN
@@ -143,22 +165,35 @@ The `config.py` file containing your Label Studio token is automatically exclude
 
 ## Integration with Training
 
-The output dataset is ready to use with YOLOv8 pose estimation:
+The output dataset is ready to use with YOLOv8/YOLOv11 object detection:
 
 ```python
 from ultralytics import YOLO
 
 # Load a model
-model = YOLO('yolov8n-pose.pt')
+model = YOLO('yolo11n.pt')  # Object detection, not pose
 
 # Train the model
 model.train(data='path/to/your/data.yaml', epochs=100)
 ```
 
-yolo pose train \
-    model=yolo11n-pose.pt \
-    data=dualp_pose.yaml \
+Or with command line:
+```bash
+yolo detect train \
+    model=yolo11n.pt \
+    data=dualp_detection.yaml \
     imgsz=320 \
     epochs=20 \
     batch=16 \
-    name=dual_purkinje_nano
+    name=dual_purkinje_detector
+```
+
+### Post-Processing for Precision
+
+After detection, implement precise center estimation:
+
+1. **Pupil center**: Fit ellipse to detected region, handle occlusion
+2. **Purkinje centers**: Use centroid of small detected regions
+3. **Gaze calculation**: Apply dual-Purkinje mathematics
+
+This two-stage approach (detection + fitting) provides both speed and precision for real-time eye tracking.
