@@ -26,20 +26,31 @@ except ImportError:                   # fallback: environment variable
             "Set LS_TOKEN in config.py or export LS_TOKEN in the shell."
         )
 
-# rle2mask import that works with any converter version
+# Import correct RLE decoder from Label Studio
 try:
-    from label_studio_converter.utils import rle2mask
+    from label_studio_converter.brush import decode_rle
 except ImportError:
-    try:
-        from label_studio_converter.brush import rle2mask
-    except ImportError:
-        def rle2mask(rle, shape):
-            """Minimal RLE decoder (start, length, …)."""
-            h, w = shape
-            mask = np.zeros(h * w, dtype=np.uint8)
-            for s, l in zip(rle[0::2], rle[1::2]):
-                mask[int(s): int(s)+int(l)] = 1
-            return mask.reshape(h, w)
+    raise ImportError("label_studio_converter is required. Install with: pip install label-studio-converter")
+
+def decode_ls_rle(rle, h, w):
+    """Decode Label Studio RLE format to 2D mask."""
+    flat_mask = decode_rle(rle)
+    
+    # Handle different RLE formats
+    total_pixels = h * w
+    flat_size = len(flat_mask)
+    
+    if flat_size == total_pixels * 4:
+        # RGBA format - take first channel
+        mask = flat_mask.reshape(h, w, 4)[:, :, 0]
+    elif flat_size == total_pixels:
+        # Direct format
+        mask = flat_mask.reshape(h, w)
+    else:
+        # Unknown format - try to extract what we can
+        mask = flat_mask[:total_pixels].reshape(h, w)
+    
+    return mask.astype(np.uint8)
 
 # ─────────────── user paths & constants ───────────────
 LS_HOST    = "http://127.0.0.1:8080"
@@ -125,7 +136,7 @@ for i, task in enumerate(tasks, 1):
             pts = [(p[0]*w/100, p[1]*h/100) for p in res["value"]["points"]]
             mask = poly_to_mask(pts, h, w)
         else:
-            mask = rle2mask(res["value"]["rle"], (h, w))
+            mask = decode_ls_rle(res["value"]["rle"], h, w)
         if mask.sum()==0: continue
         masks[name] = mask
 
