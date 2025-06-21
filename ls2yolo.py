@@ -160,7 +160,7 @@ for i, task in enumerate(tasks, 1):
     norm = lambda v, d: v / d
     yolo_items = [0, norm(cx,w), norm(cy,h), norm(bw,w), norm(bh,h)]
     for x, y in kps:
-        yolo_items += [norm(x,w), norm(y,h), 2]  # vis=2
+        yolo_items += [norm(x,w), norm(y,h), 1]
 
     stem = src_img.stem
     (OUT_ROOT/"labels/train"/f"{stem}.txt").write_text(

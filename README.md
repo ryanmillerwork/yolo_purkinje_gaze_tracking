@@ -155,4 +155,10 @@ model = YOLO('yolov8n-pose.pt')
 model.train(data='path/to/your/data.yaml', epochs=100)
 ```
 
-You'll need to create a `data.yaml` file pointing to your dataset paths. 
+yolo pose train \
+    model=yolo11n-pose.pt \
+    data=dualp_pose.yaml \
+    imgsz=320 \
+    epochs=100 \
+    batch=16 \
+    name=dual_purkinje_nano
