@@ -35,7 +35,18 @@ MASK_COLOR = {                                  # BGR for OpenCV
 # ----------------------------------------------------------------
 export_url = f"{LS_HOST}/api/projects/{PROJECT_ID}/export?exportType=JSON&download_all_tasks=true"
 headers    = {"Authorization": f"Token {LS_TOKEN}"}
+print(f"Requesting export from: {export_url}")
 response   = requests.get(export_url, headers=headers, timeout=120, stream=True)
+
+print(f"Response status: {response.status_code}")
+print(f"Response headers: {dict(response.headers)}")
+print(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+print(f"Response content length: {len(response.content)} bytes")
+
+# Debug: show first 200 chars of response if it's not a zip
+if not response.headers.get('content-type', '').startswith('application/zip'):
+    print(f"Response content preview: {response.content[:200]}")
+
 response.raise_for_status()
 
 with ZipFile(BytesIO(response.content)) as zf:
