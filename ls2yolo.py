@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import os, cv2, json, argparse, numpy as np, pathlib, shutil
-from label_studio_sdk import Client
+import os, json, cv2, numpy as np, pathlib, requests, shutil
+from io import BytesIO
+from zipfile import ZipFilefrom label_studio_sdk import Client
 # try the new location first
 try:
     from label_studio_converter.utils import rle2mask
@@ -18,10 +19,18 @@ except ImportError:
                 mask[int(s): int(s)+int(l)] = 1
             return mask.reshape(h, w)
 
-
+try:
+    from config import LS_TOKEN              # 1️⃣ preferred method
+except ImportError:
+    LS_TOKEN = os.environ.get("LS_TOKEN")    # 2️⃣ fallback
+    if not LS_TOKEN:
+        raise RuntimeError(
+            "Label-Studio token not found. "
+            "Either create config.py with LS_TOKEN='…' "
+            "or export LS_TOKEN env variable."
+        )
 
 LS_HOST  = "http://127.0.0.1:8080"
-LS_TOKEN = os.environ["LS_TOKEN"]
 PROJECT  = 7
 OUT      = pathlib.Path("yolo_dualp")
 MEDIA    = pathlib.Path("/home/lab/.local/share/label-studio/media/upload")
