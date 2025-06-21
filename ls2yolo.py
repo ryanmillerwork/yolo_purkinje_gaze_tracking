@@ -151,6 +151,15 @@ for i, task in enumerate(tasks):
         
     h, w = img.shape[:2]
 
+    # Skip tasks without annotations
+    if not task["annotations"] or len(task["annotations"]) == 0:
+        print(f"⚠️  No annotations for this task, skipping...")
+        continue
+        
+    if not task["annotations"][0].get("result"):
+        print(f"⚠️  No annotation results for this task, skipping...")
+        continue
+
     masks, kps = {}, np.zeros((3,2), np.float32)
 
     for ann in task["annotations"][0]["result"]:
