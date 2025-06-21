@@ -1,7 +1,24 @@
 #!/usr/bin/env python3
 import os, cv2, json, argparse, numpy as np, pathlib, shutil
 from label_studio_sdk import Client
-from label_studio_converter.brush import rle2mask
+# try the new location first
+try:
+    from label_studio_converter.utils import rle2mask
+except ImportError:
+    # fall back to old (<0.0.58) or roll-your-own
+    try:
+        from label_studio_converter.brush import rle2mask
+    except ImportError:
+        import numpy as np
+        def rle2mask(rle, shape):
+            """Minimal decoder for LS RLE (start, length, …)."""
+            h, w = shape
+            mask = np.zeros(h * w, dtype=np.uint8)
+            for s, l in zip(rle[0::2], rle[1::2]):
+                mask[int(s): int(s)+int(l)] = 1
+            return mask.reshape(h, w)
+
+
 
 LS_HOST  = "http://127.0.0.1:8080"
 LS_TOKEN = os.environ["LS_TOKEN"]
