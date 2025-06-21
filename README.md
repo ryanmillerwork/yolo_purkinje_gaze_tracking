@@ -66,6 +66,7 @@ IMG_ROOT   = "/label-studio/data/upload"           # LS upload directory path
 Simply run the script:
 
 ```bash
+source ~/labeling/bin/activate
 python ls2yolo.py
 ```
 

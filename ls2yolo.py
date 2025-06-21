@@ -95,10 +95,25 @@ for sub in ("images/train", "labels/train", "preview"):
 # ----------------------------------------------------------------
 # 3.  Convert each task
 # ----------------------------------------------------------------
-for task in tasks:
+for i, task in enumerate(tasks):
+    print(f"\nProcessing task {i+1}/{len(tasks)}")
+    print(f"Raw image path: {task['data']['image']}")
+    
     rel_path = task["data"]["image"].split("/data/upload")[-1]
     src_img  = pathlib.Path(IMG_ROOT + rel_path)
-    img      = cv2.imread(str(src_img)); h, w = img.shape[:2]
+    print(f"Constructed path: {src_img}")
+    print(f"File exists: {src_img.exists()}")
+    
+    if not src_img.exists():
+        print(f"⚠️  Skipping missing file: {src_img}")
+        continue
+        
+    img = cv2.imread(str(src_img))
+    if img is None:
+        print(f"⚠️  Failed to load image: {src_img}")
+        continue
+        
+    h, w = img.shape[:2]
 
     masks, kps = {}, np.zeros((3,2), np.float32)
 
