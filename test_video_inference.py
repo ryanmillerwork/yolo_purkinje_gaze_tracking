@@ -58,8 +58,8 @@ def main():
         if frame_count % FRAME_SKIP == 0:
             print(f"Processing frame {frame_count}/{total_frames}")
             
-            # Run inference
-            results = model(frame, conf=0.25, imgsz=640, verbose=False)
+            # Run inference with optimized confidence threshold
+            results = model(frame, conf=0.10, imgsz=640, verbose=False)
             
             # Draw results on frame
             annotated_frame = frame.copy()
