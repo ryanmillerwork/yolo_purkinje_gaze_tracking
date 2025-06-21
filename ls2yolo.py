@@ -20,7 +20,7 @@ from config import LS_TOKEN
 LS_HOST    = "http://127.0.0.1:8080"               # Label Studio host
 PROJECT_ID = 7                                    # project ID
 OUT_ROOT   = pathlib.Path("yolo_dualp")            # output dataset folder
-IMG_ROOT   = "/label-studio/data/upload"           # LS upload dir on server
+IMG_ROOT   = "/data/upload"                       # LS upload dir on server
 # ───────────────────────────────────────────────────────────────
 
 LABEL2KP   = {"pupil_mask":0, "purkinje1_mask":1, "purkinje4_mask":2}
