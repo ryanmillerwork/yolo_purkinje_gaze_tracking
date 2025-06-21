@@ -82,16 +82,25 @@ def poly_to_mask(poly, h, w):
     cv2.fillPoly(mask, [pts.astype(np.int32)], 1)
     return mask
 
-def draw_overlay(img, masks, box, kps):
+def draw_overlay(img, masks, boxes):
     view = img.copy()
+    
+    # Draw mask overlays with colors
     for name, m in masks.items():
         color = np.array(MASK_COLOR[name])
         view[m.astype(bool)] = 0.6*view[m>0] + 0.4*color
-    x1,y1,x2,y2 = map(int, box)
-    cv2.rectangle(view, (x1,y1), (x2,y2), (0,255,0), 2)
-    for x,y in kps:
-        cv2.drawMarker(view, (int(x),int(y)), (0,0,0),
-                       cv2.MARKER_TILTED_CROSS, 5, 2)
+    
+    # Draw individual bounding boxes
+    for x1, y1, x2, y2, mask_name in boxes:
+        x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+        cv2.rectangle(view, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        
+        # Add label text
+        class_id = LABEL2KP[mask_name]
+        label_text = f"{mask_name} (cls:{class_id})"
+        cv2.putText(view, label_text, (x1, y1-10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+    
     return view
 
 # create output dirs
@@ -107,7 +116,7 @@ for i, task in enumerate(tasks, 1):
 
     img = cv2.imread(str(src_img));  h, w = img.shape[:2]
     results = task["annotations"][0].get("result", []) if task["annotations"] else []
-    masks, kps = {}, np.zeros((3,2), np.float32)
+    masks = {}
 
     for res in results:
         if res["type"]!="brushlabels": continue
@@ -119,37 +128,55 @@ for i, task in enumerate(tasks, 1):
             mask = rle2mask(res["value"]["rle"], (h, w))
         if mask.sum()==0: continue
         masks[name] = mask
-        ys,xs = np.nonzero(mask)
-        kps[LABEL2KP[name]] = (xs.mean(), ys.mean())
 
-    # Require all three masks
-    if set(masks) != REQUIRED:
-        missing = REQUIRED - set(masks)
-        print(f"⚠️  Skipping {src_img.name}: missing {missing}")
+    # Create separate labels for each detected mask
+    if not masks:
+        print(f"⚠️  No masks found in {src_img.name}, skipping")
         continue
 
-    # bounding-box from mask union
-    union = np.any(list(masks.values()), axis=0)
-    ys,xs = np.nonzero(union)
-    x_min, x_max = xs.min()-5, xs.max()+5
-    y_min, y_max = ys.min()-5, ys.max()+5
-    x_min, y_min = max(0,x_min), max(0,y_min)
-    x_max, y_max = min(w-1,x_max), min(h-1,y_max)
-    if x_max <= x_min or y_max <= y_min:
-        print(f"⚠️  Degenerate box in {src_img.name}, skipping"); continue
-
-    cx, cy = (x_min+x_max)/2, (y_min+y_max)/2
-    bw, bh = x_max-x_min, y_max-y_min
+    labels = []
     norm = lambda v,d: v/d
-    items = [0, norm(cx,w), norm(cy,h), norm(bw,w), norm(bh,h)]
-    for x,y in kps:
-        items += [norm(x,w), norm(y,h), 1]   # visibility = 1
+    
+    for mask_name, mask in masks.items():
+        class_id = LABEL2KP[mask_name]
+        
+        # Individual bounding box for this mask
+        ys, xs = np.nonzero(mask)
+        x_min, x_max = xs.min()-5, xs.max()+5
+        y_min, y_max = ys.min()-5, ys.max()+5
+        x_min, y_min = max(0, x_min), max(0, y_min)
+        x_max, y_max = min(w-1, x_max), min(h-1, y_max)
+        
+        if x_max <= x_min or y_max <= y_min:
+            print(f"⚠️  Degenerate box for {mask_name} in {src_img.name}, skipping this mask")
+            continue
+            
+        # YOLO format: class_id center_x center_y width height
+        cx, cy = (x_min + x_max) / 2, (y_min + y_max) / 2
+        bw, bh = x_max - x_min, y_max - y_min
+        
+        label_line = f"{class_id} {norm(cx,w):.6f} {norm(cy,h):.6f} {norm(bw,w):.6f} {norm(bh,h):.6f}"
+        labels.append(label_line)
+    
+    if not labels:
+        print(f"⚠️  No valid labels generated for {src_img.name}, skipping")
+        continue
 
     stem = src_img.stem
-    (OUT_ROOT/"labels/train"/f"{stem}.txt").write_text(" ".join(f"{v:.6f}" for v in items))
+    (OUT_ROOT/"labels/train"/f"{stem}.txt").write_text("\n".join(labels))
     shutil.copy(src_img, OUT_ROOT/"images/train"/f"{stem}.jpg")
+    # Create preview with individual bboxes for each mask
+    individual_boxes = []
+    for mask_name, mask in masks.items():
+        ys, xs = np.nonzero(mask)
+        x_min, x_max = xs.min()-5, xs.max()+5
+        y_min, y_max = ys.min()-5, ys.max()+5
+        x_min, y_min = max(0, x_min), max(0, y_min)
+        x_max, y_max = min(w-1, x_max), min(h-1, y_max)
+        individual_boxes.append((x_min, y_min, x_max, y_max, mask_name))
+    
     cv2.imwrite(str(OUT_ROOT/"preview"/f"{stem}_preview.jpg"),
-                draw_overlay(img, masks, (x_min,y_min,x_max,y_max), kps))
+                draw_overlay(img, masks, individual_boxes))
 
     if i % 50 == 0:
         print(f"  processed {i}/{len(tasks)} images")
