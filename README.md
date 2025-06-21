@@ -159,6 +159,6 @@ yolo pose train \
     model=yolo11n-pose.pt \
     data=dualp_pose.yaml \
     imgsz=320 \
-    epochs=100 \
+    epochs=20 \
     batch=16 \
     name=dual_purkinje_nano
